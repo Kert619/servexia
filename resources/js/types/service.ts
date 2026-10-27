@@ -1,0 +1,23 @@
+export type Service = {
+    service_id: number;
+    place_id: string;
+    service_name: string;
+    latitude: number;
+    longitude: number;
+    rating: number | null;
+    reviews: number | null;
+    unclaimed_listing: boolean | null;
+    address: string | null;
+    phone: string | null;
+    website: string | null;
+    reviews_link: string;
+    photos_link: string;
+    type: string | null;
+    types: string[] | null;
+    type_id: string | null;
+    type_ids: string[] | null;
+    operating_hours: string[] | null;
+    user_review: string | null;
+    thumbnail: string | null;
+    valid_service: boolean;
+};
