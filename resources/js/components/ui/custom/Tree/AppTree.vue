@@ -1,15 +1,20 @@
 <template>
-    <div role="tree" class="w-full space-y-0.5">
-        <AppInput v-model="query" placeholder="Search..." :debounce="500" />
-        <AppTreeNode
-            v-for="node in filteredNodes"
-            :key="node.id"
-            :node="node"
-            :expand="!!trimmedQuery"
-            :level="0"
-            :selected-id="selectedId"
-            @select="emit('select', $event)"
-        />
+    <div role="tree" class="w-full">
+        <template v-if="filteredNodes.length">
+            <pre>{{ expanded }}</pre>
+            <AppTreeNode
+                v-for="node in filteredNodes"
+                :key="node.id"
+                :node="node"
+                :expanded-ids="expandedSet"
+                :level="0"
+                :selected-id="selectedId"
+                @select="emit('select', $event)"
+                @toggle="setOpen"
+            />
+        </template>
+
+        <span v-else class="text-sm">No results found...</span>
     </div>
 </template>
 
@@ -17,20 +22,20 @@
 import AppTreeNode, {
     type TreeNodeData,
 } from "@/components/ui/custom/Tree/AppTreeNode.vue";
-import { computed, ref } from "vue";
-import AppInput from "@/components/ui/custom/AppInput.vue";
+import { computed } from "vue";
 
 const props = defineProps<{
     data: TreeNodeData[];
     selectedId?: string;
+    filter?: string;
 }>();
 
 const emit = defineEmits<{
     select: [node: TreeNodeData];
 }>();
 
-const query = ref("");
-const trimmedQuery = computed(() => query.value.trim());
+const trimmedQuery = computed(() => props.filter?.trim() ?? "");
+const expanded = defineModel<string[]>("expanded", { default: () => [] });
 
 const filteredNodes = computed(() =>
     trimmedQuery.value
@@ -38,15 +43,10 @@ const filteredNodes = computed(() =>
         : props.data,
 );
 
+const expandedSet = computed(() => new Set(expanded.value));
+
 const labelMatches = (node: TreeNodeData, query: string) =>
     node.label.toLowerCase().includes(query.toLowerCase());
-
-/** True if any descendant (not the node itself) matches. */
-const hasMatchingDescendant = (node: TreeNodeData, query: string): boolean =>
-    (node.children ?? []).some(
-        (child) =>
-            labelMatches(child, query) || hasMatchingDescendant(child, query),
-    );
 
 /**
  * Keeps nodes that match, plus their ancestors.
@@ -64,4 +64,25 @@ const filterTree = (nodes: TreeNodeData[], query: string): TreeNodeData[] =>
 
         return acc;
     }, []);
+
+const expandFilteredTree = (nodes: TreeNodeData[]) => {
+    nodes.forEach((item) => {
+        expanded.value.push(item.id);
+        if (item.children?.length) {
+            expandFilteredTree(item.children);
+        }
+    });
+};
+
+const setOpen = (node: TreeNodeData, open: boolean) => {
+    const next = new Set(expanded.value);
+
+    if (open) {
+        next.add(node.id);
+    } else {
+        next.delete(node.id);
+    }
+
+    expanded.value = [...next];
+};
 </script>

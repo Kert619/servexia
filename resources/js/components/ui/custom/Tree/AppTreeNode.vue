@@ -1,6 +1,10 @@
 <template>
     <div class="select-none">
-        <Collapsible v-if="hasChildren" v-model:open="isOpen">
+        <Collapsible
+            v-if="hasChildren"
+            :open="isOpen"
+            @update:open="(open) => emit('toggle', node, open)"
+        >
             <div
                 class="group flex min-h-8 items-center gap-1 rounded-md pr-2 transition-colors hover:bg-accent"
                 :class="{
@@ -49,10 +53,11 @@
                         v-for="child in node.children"
                         :key="child.id"
                         :node="child"
-                        :expand="expand"
+                        :expanded-ids="expandedIds"
                         :level="(level ?? 0) + 1"
                         :selected-id="selectedId"
                         @select="emit('select', $event)"
+                        @toggle="(id, open) => emit('toggle', id, open)"
                     />
                 </div>
             </CollapsibleContent>
@@ -80,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed } from "vue";
 import { ChevronRight, File, Folder, FolderOpen } from "@lucide/vue";
 
 import {
@@ -96,37 +101,27 @@ export type TreeNodeData = {
     label: string;
     icon?: string;
     children?: TreeNodeData[];
-    defaultExpanded?: boolean;
     disabled?: boolean;
 };
 
 const props = defineProps<{
     node: TreeNodeData;
-    expand?: boolean;
     level?: number;
     selectedId?: string;
+    expandedIds: Set<string>;
 }>();
 
 const emit = defineEmits<{
     select: [node: TreeNodeData];
+    toggle: [node: TreeNodeData, open: boolean];
 }>();
 
-const isOpen = ref(props.expand || (props.node.defaultExpanded ?? false));
-
 const hasChildren = computed(() => (props.node.children?.length ?? 0) > 0);
-
+const isOpen = computed(() => props.expandedIds.has(props.node.id));
 const isSelected = computed(() => props.selectedId === props.node.id);
 
 const selectNode = () => {
     if (props.node.disabled) return;
     emit("select", props.node);
 };
-
-watch(
-    () => props.expand,
-    (expand) => {
-        // Open while filtering; restore the default when the query is cleared
-        isOpen.value = expand || (props.node.defaultExpanded ?? false);
-    },
-);
 </script>

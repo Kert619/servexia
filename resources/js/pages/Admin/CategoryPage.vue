@@ -1,101 +1,80 @@
-<script setup lang="ts">
-import { ref } from "vue";
-
-import Tree from "@/components/ui/custom/Tree/AppTree.vue";
-import type { TreeNodeData } from "@/components/ui/custom/Tree/AppTreeNode.vue";
-
-const selectedId = ref<string>();
-
-const treeData: TreeNodeData[] = [
-    {
-        id: "src",
-        label: "src",
-        defaultExpanded: true,
-        children: [
-            {
-                id: "components",
-                label: "components",
-                defaultExpanded: true,
-                children: [
-                    {
-                        id: "button",
-                        label: "Button.vue",
-                    },
-                    {
-                        id: "input",
-                        label: "Input.vue",
-                    },
-                    {
-                        id: "tree",
-                        label: "Tree.vue",
-                    },
-                ],
-            },
-            {
-                id: "views",
-                label: "views",
-                children: [
-                    {
-                        id: "home",
-                        label: "Home.vue",
-                    },
-                    {
-                        id: "about",
-                        label: "About.vue",
-                    },
-                ],
-            },
-            {
-                id: "app",
-                label: "App.vue",
-            },
-            {
-                id: "main",
-                label: "main.ts",
-            },
-        ],
-    },
-    {
-        id: "public",
-        label: "public",
-        children: [
-            {
-                id: "favicon",
-                label: "favicon.ico",
-            },
-            {
-                id: "logo",
-                label: "logo.svg",
-            },
-        ],
-    },
-    {
-        id: "package",
-        label: "package.json",
-    },
-];
-
-function handleSelect(node: TreeNodeData) {
-    selectedId.value = node.id;
-
-    console.log("Selected node:", node);
-}
-</script>
-
 <template>
-    <div class="mx-auto max-w-md p-6">
-        <h2 class="mb-4 text-lg font-semibold">Project Explorer</h2>
+    <div class="flex h-full">
+        <div class="w-80 p-3 space-y-1 border overflow-y-auto">
+            <AppInput
+                v-model="filter"
+                placeholder="Search..."
+                :debounce="500"
+            />
 
-        <div class="rounded-lg border p-3">
             <Tree
-                :data="treeData"
+                :data="tree"
+                :filter="filter"
                 :selected-id="selectedId"
-                @select="handleSelect"
+                @select="handleSelected"
             />
         </div>
-
-        <div v-if="selectedId" class="mt-4 rounded-md bg-muted p-3 text-sm">
-            Selected node ID: {{ selectedId }}
+        <div class="flex-1 overflow-y-auto">
+            <pre>Selected category: {{ selectedId }}</pre>
         </div>
     </div>
 </template>
+
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import Tree from "@/components/ui/custom/Tree/AppTree.vue";
+import type { TreeNodeData } from "@/components/ui/custom/Tree/AppTreeNode.vue";
+import { Category } from "@/types/category";
+import AppInput from "@/components/ui/custom/AppInput.vue";
+
+const props = defineProps<{
+    categories: Category[];
+}>();
+
+const filter = ref("");
+const selectedId = ref<string>();
+
+const tree = computed(() =>
+    buildTree(props.categories, (c) => c.parent_category_id),
+);
+
+const buildTree = (
+    categories: Category[],
+    getParentId: (category: Category) => number | null,
+) => {
+    const byParent = new Map<number | null, Category[]>();
+
+    for (const category of categories) {
+        const key = getParentId(category) ?? null;
+        const group = byParent.get(key);
+
+        if (group) {
+            group.push(category);
+        } else {
+            byParent.set(key, [category]);
+        }
+    }
+
+    const build = (parentId: number | null): TreeNodeData[] => {
+        return (byParent.get(parentId) ?? []).map((category) => {
+            const tree = {
+                id: category.category_id.toString(),
+                label: category.category_name,
+                ...category,
+            } as TreeNodeData;
+
+            return {
+                ...tree,
+                children: build(category.category_id),
+            } as TreeNodeData;
+        });
+    };
+
+    return build(null);
+};
+
+const handleSelected = (category: TreeNodeData) => {
+    selectedId.value = category.id;
+    console.log(category);
+};
+</script>
